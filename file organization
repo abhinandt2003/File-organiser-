@@ -1,0 +1,78 @@
+import os
+import shutil
+import time
+from pathlib import Path
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+
+Downloads_path = Path.home()/"Downloads"
+
+DESTINATION = {
+    "whatsapp": DOWNLOADS_PATH / "WhatsApp",
+    "apps": DOWNLOADS_PATH / "Applications",
+    "media": DOWNLOADS_PATH / "Images_Videos",
+    "others": DOWNLOADS_PATH / "Others"
+}
+
+# Subfolders under WhatsApp
+WHATSAPP_SUBFOLDERS = {
+    "images": DESTINATIONS["whatsapp"] / "Images",
+    "videos": DESTINATIONS["whatsapp"] / "Videos",
+    "pdfs": DESTINATIONS["whatsapp"] / "PDFs"
+}
+
+
+for folder in DESTINATION.values():
+     folder.mkdir(exist_ok= True )
+
+
+class FileOrganizer(FileSystemEventHandler):
+    def on_modified(self,event):
+        for file in Downloads_path.iterdir():
+            if file.is_file():
+                self.Organise_file(file)
+
+
+    def organize_file(self, file):
+        name = file.name.lower()
+        ext = file.suffix.lower()
+
+
+        if file.parent in DESTINATIONS.values() or file.parent in WHATSAPP_SUBFOLDERS.values():
+            return
+
+        try:
+            if "whatsapp" in name:
+                if ext in [".jpg", ".jpeg", ".png", ".gif"]:
+                    shutil.move(str(file), WHATSAPP_SUBFOLDERS["images"] / file.name)
+                elif ext in [".mp4", ".mkv", ".mov"]:
+                    shutil.move(str(file), WHATSAPP_SUBFOLDERS["videos"] / file.name)
+                elif ext == ".pdf":
+                    shutil.move(str(file), WHATSAPP_SUBFOLDERS["pdfs"] / file.name)
+                else:
+                    shutil.move(str(file), DESTINATIONS["whatsapp"] / file.name)  # move to base WhatsApp if type unknown
+
+            elif ext in [".exe", ".msi"]:
+                shutil.move(str(file), DESTINATIONS["apps"] / file.name)
+
+            elif ext in [".jpg", ".jpeg", ".png", ".gif", ".mp4", ".mkv", ".mov"]:
+                shutil.move(str(file), DESTINATIONS["media"] / file.name)
+
+            else:
+                shutil.move(str(file), DESTINATIONS["others"] / file.name)
+
+        except Exception as e:
+            print(f"Error moving file {file}: {e}")
+
+if __name__ == "__main__":
+    event_handler = DownloadOrganizerHandler()
+    observer = Observer()
+    observer.schedule(event_handler, str(DOWNLOADS_PATH), recursive=False)
+    observer.start()
+    print("✅ Watching Downloads... Press Ctrl+C to stop.")
+    try:
+        while True:
+            time.sleep(5)
+    except KeyboardInterrupt:
+        observer.stop()
+    observer.join()
